@@ -6,6 +6,8 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="12"/>
+            <RowDefinition Height="2*"/>
+            <RowDefinition Height="12"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -29,6 +31,7 @@
 
         <DataGrid Grid.Row="2"
                   ItemsSource="{Binding AuditLogs}"
+                  SelectedItem="{Binding SelectedAuditLog, Mode=TwoWay}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
                   CanUserAddRows="False"
@@ -44,12 +47,48 @@
 
                 <DataGridTextColumn Header="Action"
                                     Binding="{Binding Action}"
-                                    Width="180"/>
+                                    Width="190"/>
 
-                <DataGridTextColumn Header="Details JSON"
+                <DataGridTextColumn Header="Details"
                                     Binding="{Binding DetailsJson}"
                                     Width="*"/>
             </DataGrid.Columns>
         </DataGrid>
+
+        <Border Grid.Row="4"
+                Padding="12"
+                CornerRadius="10"
+                Background="White"
+                BorderBrush="#D5E0EE"
+                BorderThickness="1">
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="8"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0"
+                           Text="Selected event details"
+                           FontSize="16"
+                           FontWeight="SemiBold"/>
+
+                <ScrollViewer Grid.Row="2"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Auto">
+
+                    <TextBox Text="{Binding SelectedAuditLogDetails}"
+                             FontFamily="Consolas"
+                             FontSize="13"
+                             IsReadOnly="True"
+                             BorderThickness="0"
+                             Background="Transparent"
+                             TextWrapping="NoWrap"
+                             AcceptsReturn="True"
+                             AcceptsTab="True"/>
+                </ScrollViewer>
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>

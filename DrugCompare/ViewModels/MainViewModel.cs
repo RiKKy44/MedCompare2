@@ -5,6 +5,7 @@ using DrugCompare.Services;
 using DrugCompare.Services.Contracts;
 using Microsoft.Win32;
 using System.Collections.ObjectModel;
+using System.Text.Json;
 using DrugCompare.Services.Application;
 using System.IO;
 
@@ -25,6 +26,8 @@ public sealed class MainViewModel : ObservableObject
     private ActiveSubstanceItem? _selectedAcceptedSubstance;
     private InteractionResult? _selectedInteraction;
     private readonly IAuditLogService _auditLogService;
+    private AuditLogItem? _selectedAuditLog;
+    private string _selectedAuditLogDetails = "Select audit log entry to inspect details.";
     private string _resultSummaryMessage = "No interaction check performed yet.";
     private string _statusMessage = "Ready.";
     private string _emaImportSummary = "EMA import status not loaded.";
@@ -122,7 +125,23 @@ public sealed class MainViewModel : ObservableObject
         get => _statusMessage;
         set => SetProperty(ref _statusMessage, value);
     }
+    public AuditLogItem? SelectedAuditLog
+    {
+        get => _selectedAuditLog;
+        set
+        {
+            if (SetProperty(ref _selectedAuditLog, value))
+            {
+                SelectedAuditLogDetails = FormatAuditLogDetails(value?.DetailsJson);
+            }
+        }
+    }
 
+    public string SelectedAuditLogDetails
+    {
+        get => _selectedAuditLogDetails;
+        set => SetProperty(ref _selectedAuditLogDetails, value);
+    }
     public bool IsBusy
     {
         get => _isBusy;
@@ -338,6 +357,8 @@ public sealed class MainViewModel : ObservableObject
 
         try
         {
+            var previouslySelectedId = SelectedAuditLog?.Id;
+
             AuditLogs.Clear();
 
             var logs = await _auditLogService.GetRecentAsync(100);
@@ -347,13 +368,11 @@ public sealed class MainViewModel : ObservableObject
                 AuditLogs.Add(log);
             }
 
-            StatusMessage = $"Loaded {AuditLogs.Count} audit log entries.";
+            SelectedAuditLog =
+                AuditLogs.FirstOrDefault(x => x.Id == previouslySelectedId)
+                ?? AuditLogs.FirstOrDefault();
 
-            await _auditLogService.WriteAsync("AuditLogViewed", new
-            {
-                Count = AuditLogs.Count,
-                Timestamp = DateTime.Now
-            });
+            StatusMessage = $"Loaded {AuditLogs.Count} audit log entries.";
         }
         catch (Exception ex)
         {
@@ -362,6 +381,29 @@ public sealed class MainViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+        }
+    }
+    private static string FormatAuditLogDetails(string? detailsJson)
+    {
+        if (string.IsNullOrWhiteSpace(detailsJson))
+        {
+            return "No details.";
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(detailsJson);
+
+            return JsonSerializer.Serialize(
+                document.RootElement,
+                new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                });
+        }
+        catch
+        {
+            return detailsJson;
         }
     }
     private string BuildCurrentReport()
