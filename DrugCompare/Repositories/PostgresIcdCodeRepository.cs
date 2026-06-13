@@ -30,41 +30,43 @@ public class PostgresIcdCodeRepository : IIcdCodeRepository
         var normalizedQuery = NormalizeCode(query);
 
         const string sql = """
-            SELECT
-                id,
-                code,
-                normalized_code,
-                title,
-                normalized_title,
-                description,
-                chapter,
-                parent_code,
-                source,
-                version,
-                imported_at
-            FROM icd_codes
-            WHERE
-                (
-                    normalized_code ILIKE '%' || @normalized_query || '%'
-                    OR normalized_title ILIKE '%' || lower(@query) || '%'
-                    OR lower(COALESCE(description, '')) ILIKE '%' || lower(@query) || '%'
-                )
-                AND
-                (
-                    @category_filter IS NULL
-                    OR @category_filter = ''
-                    OR chapter = @category_filter
-                )
-            ORDER BY
-                CASE
-                    WHEN normalized_code = @normalized_query THEN 0
-                    WHEN normalized_code LIKE @normalized_query || '%' THEN 1
-                    WHEN normalized_title LIKE lower(@query) || '%' THEN 2
-                    ELSE 3
-                END,
-                code
-            LIMIT @limit;
-            """;
+    SELECT
+        id,
+        code,
+        normalized_code,
+        title,
+        normalized_title,
+        description,
+        chapter,
+        parent_code,
+        source,
+        version,
+        imported_at
+    FROM icd_codes
+    WHERE
+        (
+            @query = ''
+            OR normalized_code ILIKE '%' || @normalized_query || '%'
+            OR lower(COALESCE(title, '')) ILIKE '%' || lower(@query) || '%'
+            OR lower(COALESCE(normalized_title, '')) ILIKE '%' || lower(@query) || '%'
+            OR lower(COALESCE(description, '')) ILIKE '%' || lower(@query) || '%'
+        )
+        AND
+        (
+            @category_filter IS NULL
+            OR @category_filter = ''
+            OR COALESCE(chapter, '') = @category_filter
+        )
+    ORDER BY
+        CASE
+            WHEN normalized_code = @normalized_query THEN 0
+            WHEN normalized_code LIKE @normalized_query || '%' THEN 1
+            WHEN lower(COALESCE(title, '')) LIKE lower(@query) || '%' THEN 2
+            ELSE 3
+        END,
+        code
+    LIMIT @limit;
+    """;
 
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync();
@@ -134,17 +136,13 @@ public class PostgresIcdCodeRepository : IIcdCodeRepository
             Id = reader.GetInt64(reader.GetOrdinal("id")),
             Code = reader.GetString(reader.GetOrdinal("code")),
             NormalizedCode = reader.GetString(reader.GetOrdinal("normalized_code")),
-
             Title = reader.GetString(reader.GetOrdinal("title")),
             NormalizedTitle = reader.GetString(reader.GetOrdinal("normalized_title")),
-
             Description = reader["description"] as string,
             Chapter = reader["chapter"] as string,
             ParentCode = reader["parent_code"] as string,
-
             Source = reader["source"] as string ?? "ICD",
             Version = reader["version"] as string,
-
             ImportedAt = reader.GetDateTime(reader.GetOrdinal("imported_at"))
         };
     }

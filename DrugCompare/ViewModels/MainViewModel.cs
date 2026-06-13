@@ -933,7 +933,7 @@ public sealed class MainViewModel : ObservableObject
 
         if (string.IsNullOrWhiteSpace(IcdSearchQuery))
         {
-            StatusMessage = "Enter ICD code or disease name.";
+            StatusMessage = "Enter ICD code, disease name, or description.";
             return;
         }
 
@@ -942,11 +942,12 @@ public sealed class MainViewModel : ObservableObject
 
         try
         {
-            var categoryFilter = SelectedIcdCategory == "All"
-            ? null
-            : SelectedIcdCategory;
+            string? categoryFilter = null;
 
-            var results = await _icdCodeService.SearchAsync(IcdSearchQuery, categoryFilter, 100);
+            var results = await _icdCodeService.SearchAsync(
+                IcdSearchQuery,
+                categoryFilter,
+                100);
 
             foreach (var item in results)
             {
@@ -960,13 +961,14 @@ public sealed class MainViewModel : ObservableObject
             await _auditLogService.WriteAsync("IcdCodeSearched", new
             {
                 Query = IcdSearchQuery.Trim(),
+                Category = SelectedIcdCategory,
                 ResultCount = IcdSearchResults.Count,
                 Timestamp = DateTime.Now
             });
         }
         catch (Exception ex)
         {
-            StatusMessage = $"ICD search failed: {(ex)}";
+            StatusMessage = $"ICD search failed: {ex.Message}";
         }
         finally
         {
