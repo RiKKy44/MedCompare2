@@ -91,6 +91,8 @@ public sealed class MainViewModel : ObservableObject
         OpenSelectedChplCommand = new RelayCommand(OpenSelectedChpl, CanOpenSelectedChpl);
         OpenSelectedLeafletCommand = new RelayCommand(OpenSelectedLeaflet, CanOpenSelectedLeaflet);
         SearchIcdCodesCommand = new AsyncRelayCommand(SearchIcdCodesAsync);
+        LoadIcdCategoriesCommand = new AsyncRelayCommand(LoadIcdCategoriesAsync);
+
     }
     public string DatabaseStatusText
     {
@@ -113,6 +115,7 @@ public sealed class MainViewModel : ObservableObject
         get => _icdSearchQuery;
         set => SetProperty(ref _icdSearchQuery, value);
     }
+
 
     public IcdCodeItem? SelectedIcdCode
     {
@@ -169,6 +172,7 @@ public sealed class MainViewModel : ObservableObject
         get => _selectedInteraction;
         set => SetProperty(ref _selectedInteraction, value);
     }
+ 
 
     public string StatusMessage
     {
@@ -244,6 +248,7 @@ public sealed class MainViewModel : ObservableObject
     public IRelayCommand ClearCaseCommand { get; }
 
     public IAsyncRelayCommand CheckInteractionsCommand { get; }
+    public IAsyncRelayCommand LoadIcdCategoriesCommand { get; }
     public IAsyncRelayCommand LoadDatabaseStatusCommand { get; }
     public IAsyncRelayCommand LoadDataManagementCommand { get; }
     public ObservableCollection<string> IcdCategories { get; } = new()
@@ -942,7 +947,9 @@ public sealed class MainViewModel : ObservableObject
 
         try
         {
-            string? categoryFilter = null;
+            var categoryFilter = SelectedIcdCategory == "All"
+                ? null
+                : SelectedIcdCategory;
 
             var results = await _icdCodeService.SearchAsync(
                 IcdSearchQuery,
@@ -957,23 +964,39 @@ public sealed class MainViewModel : ObservableObject
             SelectedIcdCode = IcdSearchResults.FirstOrDefault();
 
             StatusMessage = $"Found {IcdSearchResults.Count} ICD code(s).";
-
-            await _auditLogService.WriteAsync("IcdCodeSearched", new
-            {
-                Query = IcdSearchQuery.Trim(),
-                Category = SelectedIcdCategory,
-                ResultCount = IcdSearchResults.Count,
-                Timestamp = DateTime.Now
-            });
         }
         catch (Exception ex)
         {
-            StatusMessage = $"ICD search failed: {ex.Message}";
+            StatusMessage = $"ICD search failed: {(ex)}";
         }
         finally
         {
             IsBusy = false;
         }
     }
+    private async Task LoadIcdCategoriesAsync()
+    {
+        try
+        {
+            var current = SelectedIcdCategory;
 
+            IcdCategories.Clear();
+            IcdCategories.Add("All");
+
+            var categories = await _icdCodeService.GetCategoriesAsync();
+
+            foreach (var category in categories)
+            {
+                IcdCategories.Add(category);
+            }
+
+            SelectedIcdCategory = IcdCategories.Contains(current)
+                ? current
+                : "All";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Loading ICD categories failed: {(ex)}";
+        }
+    }
 }

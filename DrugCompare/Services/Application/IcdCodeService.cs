@@ -20,6 +20,10 @@ public class IcdCodeService : IIcdCodeService
     {
         return _repository.SearchAsync(query, categoryFilter, limit);
     }
+    public Task<List<string>> GetCategoriesAsync()
+    {
+        return _repository.GetCategoriesAsync();
+    }
 
     public Task<IcdCodeItem?> GetByIdAsync(long id)
     {

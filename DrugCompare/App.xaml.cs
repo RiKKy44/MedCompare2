@@ -7,6 +7,8 @@ using System.Windows;
 using DrugCompare.Services.Application;
 using DrugCompare.Repositories;
 using DrugCompare.Repositories.Contracts;
+using DrugCompare.Database;
+
 
 namespace DrugCompare;
 
@@ -26,8 +28,35 @@ public partial class App : Application
         var services = new ServiceCollection();
 
         services.AddSingleton<IConfiguration>(configuration);
+        services.AddSingleton<SqliteConnectionFactory>();
 
-       
+        var databaseProvider = configuration["Database:Provider"];
+        var useSqlite = string.Equals(databaseProvider, "SQLite", StringComparison.OrdinalIgnoreCase);
+
+        if (useSqlite)
+        {
+            services.AddSingleton<SqliteConnectionFactory>();
+
+            services.AddSingleton<IIcdCodeRepository, SqliteIcdCodeRepository>();
+            services.AddSingleton<IPolishDrugRegistryRepository, SqlitePolishDrugRegistryRepository>();
+            services.AddSingleton<IAuditLogRepository, SqliteAuditLogRepository>();
+            services.AddSingleton<IInteractionRepository, SqliteInteractionRepository>();
+
+            // Na razie wyłączam dla portable
+            // services.AddSingleton<IDatabaseStatusRepository, SqliteDatabaseStatusRepository>();
+            // services.AddSingleton<IDataManagementRepository, SqliteDataManagementRepository>();
+        }
+        else
+        {
+            services.AddSingleton<IIcdCodeRepository, PostgresIcdCodeRepository>();
+            services.AddSingleton<IPolishDrugRegistryRepository, PostgresPolishDrugRegistryRepository>();
+            services.AddSingleton<IAuditLogRepository, PostgresAuditLogRepository>();
+            services.AddSingleton<IInteractionRepository, PostgresInteractionRepository>();
+
+            services.AddSingleton<IDatabaseStatusRepository, PostgresDatabaseStatusRepository>();
+            services.AddSingleton<IDataManagementRepository, PostgresDataManagementRepository>();
+        }
+
         services.AddSingleton<IDrugRepository, PostgresDrugRepository>();
         services.AddSingleton<ISubstanceRepository, PostgresSubstanceRepository>();
         services.AddSingleton<IInteractionRepository, PostgresInteractionRepository>();
@@ -40,6 +69,8 @@ public partial class App : Application
         services.AddSingleton<IPolishDrugRegistryRepository, PostgresPolishDrugRegistryRepository>();
         services.AddSingleton<IIcdCodeRepository, PostgresIcdCodeRepository>();
         services.AddSingleton<IIcdCodeService, IcdCodeService>();
+        services.AddSingleton<IDatabaseStatusRepository, PostgresDatabaseStatusRepository>();
+        services.AddSingleton<IDataManagementRepository, PostgresDataManagementRepository>();
 
         services.AddSingleton<PostgresDrugDataService>();
 
@@ -65,16 +96,21 @@ public partial class App : Application
 
         services.AddSingleton<IInteractionHistoryService>(sp =>
             sp.GetRequiredService<PostgresDrugDataService>());
+        if (useSqlite)
+        {
+            services.AddSingleton<SqliteConnectionFactory>();
 
-        services.AddSingleton<IDatabaseStatusService>(sp =>
-            sp.GetRequiredService<PostgresDrugDataService>());
+            services.AddSingleton<IIcdCodeRepository, SqliteIcdCodeRepository>();
+            services.AddSingleton<IPolishDrugRegistryRepository, SqlitePolishDrugRegistryRepository>();
+            services.AddSingleton<IAuditLogRepository, SqliteAuditLogRepository>();
+            services.AddSingleton<IInteractionRepository, SqliteInteractionRepository>();
 
-        services.AddSingleton<IDataManagementService>(sp =>
-            sp.GetRequiredService<PostgresDrugDataService>());
-
+            services.AddSingleton<IDatabaseStatusService, DisabledDatabaseStatusService>();
+            services.AddSingleton<IDataManagementService, DisabledDataManagementService>();
+        
+        }
 
         services.AddTransient<InteractionAnalysisService>();
-
         services.AddTransient<MainViewModel>();
         services.AddTransient<MainWindow>();
 
@@ -84,7 +120,7 @@ public partial class App : Application
         MainWindow = mainWindow;
         mainWindow.Show();
 
-        await ShowStartupDatabaseStatsAsync(mainWindow);
+       // await ShowStartupDatabaseStatsAsync(mainWindow);
     }
 
     private async Task ShowStartupDatabaseStatsAsync(Window owner)

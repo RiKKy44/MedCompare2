@@ -10,4 +10,5 @@ public interface IIcdCodeRepository
         int limit = 100);
 
     Task<IcdCodeItem?> GetByIdAsync(long id);
+    Task<List<string>> GetCategoriesAsync();
 }
