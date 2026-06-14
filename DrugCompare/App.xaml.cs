@@ -100,14 +100,31 @@ public partial class App : Application
         {
             services.AddSingleton<SqliteConnectionFactory>();
 
+            services.AddSingleton<IDrugRepository, SqliteDrugRepository>();
+            services.AddSingleton<ISubstanceRepository, SqliteSubstanceRepository>();
+            services.AddSingleton<IInteractionRepository, SqliteInteractionRepository>();
+            services.AddSingleton<IDrugExplorerRepository, SqliteDrugExplorerRepository>();
+
+            services.AddSingleton<IAuditLogRepository, SqliteAuditLogRepository>();
             services.AddSingleton<IIcdCodeRepository, SqliteIcdCodeRepository>();
             services.AddSingleton<IPolishDrugRegistryRepository, SqlitePolishDrugRegistryRepository>();
-            services.AddSingleton<IAuditLogRepository, SqliteAuditLogRepository>();
-            services.AddSingleton<IInteractionRepository, SqliteInteractionRepository>();
 
             services.AddSingleton<IDatabaseStatusService, DisabledDatabaseStatusService>();
             services.AddSingleton<IDataManagementService, DisabledDataManagementService>();
-        
+        }
+        else
+        {
+            services.AddSingleton<IDrugRepository, PostgresDrugRepository>();
+            services.AddSingleton<ISubstanceRepository, PostgresSubstanceRepository>();
+            services.AddSingleton<IInteractionRepository, PostgresInteractionRepository>();
+            services.AddSingleton<IDrugExplorerRepository, PostgresDrugExplorerRepository>();
+
+            services.AddSingleton<IAuditLogRepository, PostgresAuditLogRepository>();
+            services.AddSingleton<IIcdCodeRepository, PostgresIcdCodeRepository>();
+            services.AddSingleton<IPolishDrugRegistryRepository, PostgresPolishDrugRegistryRepository>();
+
+            services.AddSingleton<IDatabaseStatusRepository, PostgresDatabaseStatusRepository>();
+            services.AddSingleton<IDataManagementRepository, PostgresDataManagementRepository>();
         }
 
         services.AddTransient<InteractionAnalysisService>();

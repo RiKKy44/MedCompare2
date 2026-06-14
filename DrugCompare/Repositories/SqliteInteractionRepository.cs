@@ -5,7 +5,7 @@ using Microsoft.Data.Sqlite;
 
 namespace DrugCompare.Repositories;
 
-public class SqliteInteractionRepository : IInteractionRepository
+public sealed class SqliteInteractionRepository : IInteractionRepository
 {
     private readonly SqliteConnectionFactory _connectionFactory;
 
@@ -17,26 +17,20 @@ public class SqliteInteractionRepository : IInteractionRepository
     public async Task<List<InteractionResult>> CheckInteractionsAsync(
         IReadOnlyCollection<ActiveSubstanceItem> substances)
     {
-        var results = new List<InteractionResult>();
-
-        var ids = substances
+        var items = substances
             .Where(x => x.DatabaseId.HasValue)
-            .Select(x => x.DatabaseId!.Value)
-            .Distinct()
+            .GroupBy(x => x.DatabaseId!.Value)
+            .Select(x => x.First())
             .ToList();
 
-        if (ids.Count < 2)
+        if (items.Count < 2)
         {
-            return results;
+            return new List<InteractionResult>();
         }
 
-        var parameterNames = ids
-            .Select((_, index) => $"@id{index}")
-            .ToList();
+        var results = new List<InteractionResult>();
 
-        var inClause = string.Join(", ", parameterNames);
-
-        var sql = $"""
+        const string sql = """
             SELECT
                 si.id,
                 si.substance_a_id,
@@ -44,64 +38,80 @@ public class SqliteInteractionRepository : IInteractionRepository
                 si.severity,
                 si.source,
                 si.last_updated,
-                a.name AS substance_a_name,
-                b.name AS substance_b_name
+                a.name AS substance_a,
+                b.name AS substance_b
             FROM substance_interactions si
             JOIN active_substances a ON a.id = si.substance_a_id
             JOIN active_substances b ON b.id = si.substance_b_id
-            WHERE si.substance_a_id IN ({inClause})
-              AND si.substance_b_id IN ({inClause})
-            ORDER BY
-                CASE
-                    WHEN lower(si.severity) IN ('x', 'contraindicated', 'major') THEN 0
-                    WHEN lower(si.severity) IN ('d', 'moderate') THEN 1
-                    WHEN lower(si.severity) IN ('c') THEN 2
-                    ELSE 3
-                END,
-                a.name,
-                b.name;
+            WHERE
+                (
+                    si.substance_a_id = @first_id
+                    AND si.substance_b_id = @second_id
+                )
+                OR
+                (
+                    si.substance_a_id = @second_id
+                    AND si.substance_b_id = @first_id
+                )
+            LIMIT 1;
             """;
 
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync();
 
-        await using var command = connection.CreateCommand();
-        command.CommandText = sql;
-
-        for (var i = 0; i < ids.Count; i++)
+        for (var i = 0; i < items.Count; i++)
         {
-            command.Parameters.AddWithValue(parameterNames[i], ids[i]);
-        }
-
-        await using var reader = await command.ExecuteReaderAsync();
-
-        while (await reader.ReadAsync())
-        {
-            var substanceA = GetString(reader, "substance_a_name");
-            var substanceB = GetString(reader, "substance_b_name");
-            var severity = GetString(reader, "severity");
-            var source = GetNullableString(reader, "source") ?? "Local DDInter-based database";
-
-            results.Add(new InteractionResult
+            for (var j = i + 1; j < items.Count; j++)
             {
-                SubstanceA = substanceA,
-                SubstanceB = substanceB,
-                Severity = severity,
-                Source = source,
-                Message = BuildMessage(substanceA, substanceB, severity, source)
-            });
+                var firstId = items[i].DatabaseId!.Value;
+                var secondId = items[j].DatabaseId!.Value;
+
+                await using var command = connection.CreateCommand();
+                command.CommandText = sql;
+                command.Parameters.AddWithValue("@first_id", firstId);
+                command.Parameters.AddWithValue("@second_id", secondId);
+
+                await using var reader = await command.ExecuteReaderAsync();
+
+                if (!await reader.ReadAsync())
+                {
+                    continue;
+                }
+
+                var substanceA = GetString(reader, "substance_a");
+                var substanceB = GetString(reader, "substance_b");
+                var severity = GetString(reader, "severity");
+                var source = GetNullableString(reader, "source") ?? "Local DDInter SQLite database";
+
+                results.Add(new InteractionResult
+                {
+                    SubstanceA = substanceA,
+                    SubstanceB = substanceB,
+                    Severity = severity,
+                    Message = $"Interaction found between {substanceA} and {substanceB}. Severity: {severity}. Source: {source}. Verify clinically.",
+                    Source = source
+                });
+            }
         }
 
-        return results;
+        return results
+            .OrderByDescending(x => GetSeverityScore(x.Severity))
+            .ToList();
     }
 
-    private static string BuildMessage(
-        string substanceA,
-        string substanceB,
-        string severity,
-        string source)
+    private static int GetSeverityScore(string severity)
     {
-        return $"Interaction between {substanceA} and {substanceB}. Severity: {severity}. Source: {source}.";
+        var value = severity.Trim().ToLowerInvariant();
+
+        return value switch
+        {
+            "contraindicated" => 5,
+            "major" => 4,
+            "moderate" => 3,
+            "minor" => 2,
+            "unknown" => 1,
+            _ => 0
+        };
     }
 
     private static string GetString(SqliteDataReader reader, string column)

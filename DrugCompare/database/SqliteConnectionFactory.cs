@@ -10,38 +10,28 @@ public class SqliteConnectionFactory
 
     public SqliteConnectionFactory(IConfiguration configuration)
     {
-        _connectionString = configuration.GetConnectionString("DefaultConnection")
+        var rawConnectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Missing DefaultConnection connection string.");
 
-        EnsureDataDirectoryExists();
-    }
+        var builder = new SqliteConnectionStringBuilder(rawConnectionString);
 
-    public SqliteConnection CreateConnection()
-    {
-        return new SqliteConnection(_connectionString);
-    }
-
-    private void EnsureDataDirectoryExists()
-    {
-        var builder = new SqliteConnectionStringBuilder(_connectionString);
-
-        if (string.IsNullOrWhiteSpace(builder.DataSource))
+        if (!Path.IsPathRooted(builder.DataSource))
         {
-            return;
+            builder.DataSource = Path.Combine(AppContext.BaseDirectory, builder.DataSource);
         }
 
-        var databasePath = builder.DataSource;
-
-        if (!Path.IsPathRooted(databasePath))
-        {
-            databasePath = Path.Combine(AppContext.BaseDirectory, databasePath);
-        }
-
-        var directory = Path.GetDirectoryName(databasePath);
+        var directory = Path.GetDirectoryName(builder.DataSource);
 
         if (!string.IsNullOrWhiteSpace(directory))
         {
             Directory.CreateDirectory(directory);
         }
+
+        _connectionString = builder.ToString();
+    }
+
+    public SqliteConnection CreateConnection()
+    {
+        return new SqliteConnection(_connectionString);
     }
 }

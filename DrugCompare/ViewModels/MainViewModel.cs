@@ -515,8 +515,11 @@ public sealed class MainViewModel : ObservableObject
             {
                 DetectedSubstances.Add(substance);
             }
-
-            StatusMessage = $"Found {result.ActiveSubstances.Count} active substance(s) for {result.DrugName}.";
+            //Debug part for SQLite
+            StatusMessage =
+            $"Found {result.ActiveSubstances.Count} active substance(s) for {result.DrugName}. " +
+            $"IDs: {string.Join(", ", result.ActiveSubstances.Select(x => $"{x.Name}:{x.DatabaseId?.ToString() ?? "NULL"}"))}";
+            //StatusMessage = $"Found {result.ActiveSubstances.Count} active substance(s) for {result.DrugName}.";
 
             await _auditLogService.WriteAsync("DrugSearched", new
             {
@@ -550,15 +553,21 @@ public sealed class MainViewModel : ObservableObject
             IsBusy = false;
         }
     }
+   
     private void AcceptDetectedSubstance()
-    {
+       {
         if (SelectedDetectedSubstance is null)
         {
             StatusMessage = "Select detected active substance first.";
             return;
         }
 
-        AddAcceptedSubstance(SelectedDetectedSubstance);
+        var substance = SelectedDetectedSubstance;
+
+        AddAcceptedSubstance(substance);
+
+        DetectedSubstances.Remove(substance);
+        SelectedDetectedSubstance = null;
     }
 
     private void AcceptAllDetectedSubstances()
@@ -569,13 +578,68 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
 
+        var addedCount = 0;
+
         foreach (var substance in DetectedSubstances)
         {
-            AddAcceptedSubstance(substance);
+            var alreadyExists = AcceptedSubstances.Any(x =>
+                x.DatabaseId == substance.DatabaseId &&
+                string.Equals(x.NormalizedName, substance.NormalizedName, StringComparison.OrdinalIgnoreCase));
+
+            if (alreadyExists)
+            {
+                continue;
+            }
+
+            AcceptedSubstances.Add(new ActiveSubstanceItem
+            {
+                DatabaseId = substance.DatabaseId,
+                Name = substance.Name,
+                NormalizedName = substance.NormalizedName,
+                DDInterId = substance.DDInterId,
+                Source = substance.Source
+            });
+
+            addedCount++;
         }
 
-        StatusMessage = "Detected active substances accepted.";
+        DetectedSubstances.Clear();
+
+        StatusMessage = $"Accepted {addedCount} substance(s).";
     }
+    private void AcceptSelectedDetectedSubstance()
+{
+    if (SelectedDetectedSubstance is null)
+    {
+        StatusMessage = "Select a detected substance first.";
+        return;
+    }
+
+    var substance = SelectedDetectedSubstance;
+
+    var alreadyExists = AcceptedSubstances.Any(x =>
+        x.DatabaseId == substance.DatabaseId &&
+        string.Equals(x.NormalizedName, substance.NormalizedName, StringComparison.OrdinalIgnoreCase));
+
+    if (alreadyExists)
+    {
+        StatusMessage = "This substance is already accepted.";
+        return;
+    }
+
+    AcceptedSubstances.Add(new ActiveSubstanceItem
+    {
+        DatabaseId = substance.DatabaseId,
+        Name = substance.Name,
+        NormalizedName = substance.NormalizedName,
+        DDInterId = substance.DDInterId,
+        Source = substance.Source
+    });
+
+    DetectedSubstances.Remove(substance);
+
+    StatusMessage = $"Accepted active substance: {substance.DisplayName}.";
+}
     private async Task LoadAuditLogsAsync()
     {
         IsBusy = true;
@@ -857,6 +921,10 @@ public sealed class MainViewModel : ObservableObject
 
         try
         {
+            //Debug part
+            StatusMessage =
+            "Checking IDs: " +
+            string.Join(", ", AcceptedSubstances.Select(x => $"{x.Name}:{x.DatabaseId?.ToString() ?? "NULL"}"));
 
             var analysis = await _interactionAnalysisService.AnalyzeAsync(
                 AcceptedSubstances.ToList());
