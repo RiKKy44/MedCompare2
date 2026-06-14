@@ -1,4 +1,4 @@
-````markdown
+
 # MedCompare
 
 **MedCompare** is a local desktop application for checking medicine information, active substances, known substance interactions, Polish medicinal product registry data, and ICD-11 codes.
@@ -51,7 +51,7 @@ DDInter substance mapping
 substance_interactions
   ↓
 interaction result
-````
+```
 
 W obecnej wersji checker korzysta z lokalnych danych w SQLite i sprawdza interakcje na poziomie substancji czynnych.
 
