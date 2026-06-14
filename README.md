@@ -1,160 +1,391 @@
+````markdown
 # MedCompare
 
-MedCompare is a desktop application built with C# and WPF. Its main goal is to provide local access to medication-related information, active substances, drug interaction checking, Polish drug registry data, and ICD code lookup.
+**MedCompare** is a local desktop application for checking medicine information, active substances, known substance interactions, Polish medicinal product registry data, and ICD-11 codes.
 
-This project was created as an educational/prototype application. I wanted to build something more practical than a simple CRUD app — something that works with real medical datasets, runs locally, and shows how desktop development, databases, and basic clinical decision-support concepts can be combined in one project.
+The application is built as a **local medical reference and clinical decision-support prototype**. It runs on the user's computer and does not send medical data to external APIs.
 
-The application does not use cloud services or external APIs during normal use. The data is stored locally in a database.
-
----
-
-## What the application does
-
-MedCompare currently includes several main modules:
-
-* checking interactions between active substances,
-* searching drugs and active substances,
-* browsing Polish drug registry data,
-* searching ICD codes,
-* viewing history and audit logs,
-* running in local portable mode with SQLite.
+> **Medical disclaimer**  
+> MedCompare is an educational and technical prototype. It does not replace a physician, pharmacist, or any qualified medical professional. Missing interaction data does not mean that a combination is safe. Every result must be clinically verified.
 
 ---
 
-## Main modules
+# 🇵🇱 Opis projektu
 
-### Interaction Checker
+MedCompare to aplikacja desktopowa napisana w technologii **WPF / .NET 8**, służąca do lokalnego wyszukiwania informacji o lekach, substancjach czynnych, znanych interakcjach, polskim rejestrze produktów leczniczych oraz kodach **ICD-11**.
 
-This is the main module of the application. It allows the user to search for active substances, manually add them, accept them for analysis, and then check whether known interactions exist in the local database.
+Projekt działa lokalnie na komputerze użytkownika. Obecna wersja korzysta z lokalnej bazy **SQLite**, dzięki czemu aplikacja może zostać uruchomiona jako wersja portable — bez instalowania PostgreSQL i bez zewnętrznego serwera bazy danych.
 
-The application displays:
-
-* the first substance,
-* the second substance,
-* interaction severity,
-* data source,
-* a short result message.
-
-An important part of this module is safe wording. The application does not say that a combination is “safe” when no interaction is found. It only means that no matching interaction record was found in the local database.
+Projekt ma charakter prototypu edukacyjno-technicznego. Jego celem jest pokazanie, jak można zbudować lokalną aplikację referencyjną dla danych lekowych i klasyfikacyjnych.
 
 ---
 
-### Drug Explorer
+## Najważniejsze funkcje
 
-This module is used for browsing drug-related information and linked active substances.
+### 1. Interaction Checker
 
-It is still being developed together with the drug database and data import process. The goal is to make it easy to check which active substances are connected with a specific medicinal product.
+Moduł sprawdzania interakcji między substancjami czynnymi.
 
----
+Funkcje:
 
-### Polish Drug Registry
+- wyszukiwanie leku po nazwie,
+- automatyczne wykrywanie substancji czynnych leku,
+- akceptowanie wykrytych substancji do aktualnego przypadku,
+- ręczne dodawanie substancji czynnych,
+- sprawdzanie znanych interakcji między zaakceptowanymi substancjami,
+- wyświetlanie poziomu interakcji / severity,
+- wyświetlanie źródła danych,
+- eksport raportu tekstowego.
 
-This module is based on data from the Polish Register of Medicinal Products.
-
-It allows searching medicinal products by:
-
-* product name,
-* active substance,
-* authorization number,
-* normalized product name.
-
-The database includes information such as:
-
-* product name,
-* active substances,
-* strength,
-* pharmaceutical form,
-* marketing authorization holder,
-* authorization number,
-* Summary of Product Characteristics URL,
-* patient leaflet URL.
-
----
-
-### ICD Looker
-
-This module allows searching ICD codes. The current version uses ICD-11 data in Polish.
-
-The user can search by:
-
-* ICD code,
-* disease name,
-* description,
-* category/chapter.
-
-Example searches:
+Przepływ danych:
 
 ```text
-diabetes
-asthma
-hypertension
-depression
-```
+Drug name
+  ↓
+EMA drug record
+  ↓
+active substances
+  ↓
+DDInter substance mapping
+  ↓
+substance_interactions
+  ↓
+interaction result
+````
 
-Polish terms can also be used, for example:
+W obecnej wersji checker korzysta z lokalnych danych w SQLite i sprawdza interakcje na poziomie substancji czynnych.
+
+Ważna zasada bezpieczeństwa:
 
 ```text
-cukrzyca
-astma
-nadciśnienie
-depresja
+No known interaction was found in the local database.
+Missing interaction data does not mean that the combination is safe.
+```
+
+Brak znalezionej interakcji nie oznacza, że połączenie jest bezpieczne.
+
+---
+
+### 2. Drug Lookup
+
+Moduł wyszukiwania leków.
+
+Funkcje:
+
+* wyszukiwanie leku po nazwie,
+* pobieranie przypisanych substancji czynnych,
+* mapowanie leku na substancje z lokalnej tabeli `active_substances`,
+* przekazywanie substancji do Interaction Checkera.
+
+W obecnej wersji główne wyszukiwanie leków bazuje na danych EMA zaimportowanych lokalnie do tabel:
+
+```text
+drugs
+drug_active_substances
+active_substances
+```
+
+Polski Rejestr Produktów Leczniczych nie jest używany jako główne źródło dla Interaction Checkera. Jest dostępny w osobnym module.
+
+---
+
+### 3. Manual Active Substance
+
+Moduł ręcznego dodawania substancji czynnej.
+
+Funkcje:
+
+* wpisanie nazwy substancji czynnej,
+* wyszukanie substancji w lokalnej bazie `active_substances`,
+* dodanie jej do zaakceptowanych substancji,
+* sprawdzanie interakcji także dla substancji dodanych ręcznie.
+
+Ten tryb jest przydatny, gdy użytkownik zna dokładną nazwę substancji albo chce przetestować konkretną parę substancji.
+
+---
+
+### 4. Drug Explorer
+
+Moduł eksploracji lokalnej bazy leków.
+
+Funkcje:
+
+* wyszukiwanie leków w lokalnej bazie,
+* podgląd nazwy leku,
+* podgląd producenta / podmiotu, jeżeli dane są dostępne,
+* podgląd powiązanych substancji czynnych,
+* szybka inspekcja danych zaimportowanych z EMA.
+
+Ten moduł służy bardziej do przeglądania danych niż do bezpośredniego sprawdzania interakcji.
+
+---
+
+### 5. Polish Drug Registry
+
+Moduł wyszukiwania w polskim rejestrze produktów leczniczych.
+
+Funkcje:
+
+* wyszukiwanie produktów leczniczych z polskiego rejestru,
+* podgląd nazwy produktu,
+* podgląd substancji czynnej zapisanej w rejestrze,
+* podgląd numerów i danych rejestracyjnych, jeżeli występują w imporcie,
+* obsługa linków do dokumentów, jeżeli są dostępne.
+
+Dane pochodzą z Rejestru Produktów Leczniczych prowadzonego przez URPL.
+
+Ten moduł jest oddzielny od Interaction Checkera, ponieważ dane z rejestru krajowego mogą zawierać opisy tekstowe, nazwy szczepów, preparaty złożone lub zapisy, które nie zawsze są bezpośrednio zgodne z identyfikatorami substancji w DDInter.
+
+---
+
+### 6. ICD Looker
+
+Moduł wyszukiwania kodów **ICD-11**.
+
+To nie jest ICD-10.
+
+Aplikacja używa lokalnie zaimportowanych danych ICD-11 w języku polskim. Moduł umożliwia:
+
+* wyszukiwanie po kodzie,
+* wyszukiwanie po nazwie jednostki,
+* wyszukiwanie po opisie,
+* filtrowanie po kategoriach,
+* przeglądanie wyników klasyfikacji.
+
+ICD-11 jest jedenastą rewizją Międzynarodowej Klasyfikacji Chorób. Według WHO ICD-11 została przyjęta przez World Health Assembly w 2019 roku i globalnie weszła w życie 1 stycznia 2022 roku.
+
+W Polsce wdrożenie ICD-11 jest procesem przejściowym. Trwają projekty i prace wspierające wdrożenie ICD-11 w systemie ochrony zdrowia. W praktyce projekt należy traktować jako przygotowany pod ICD-11 i okres wdrożeniowy w Polsce przypadający na lata 2026–2027, z roboczym założeniem przejścia od końca 2026 roku. Dokładny zakres i obowiązkowość stosowania zależą od decyzji oraz harmonogramu instytucji publicznych.
+
+---
+
+### 7. Database Status
+
+Moduł statusu bazy danych.
+
+Funkcje:
+
+* liczba leków,
+* liczba substancji czynnych,
+* liczba relacji lek–substancja,
+* liczba interakcji,
+* szybkie potwierdzenie, czy aplikacja czyta właściwy plik SQLite.
+
+Przykładowe tabele sprawdzane przez status:
+
+```text
+drugs
+active_substances
+drug_active_substances
+substance_interactions
 ```
 
 ---
 
-## Data
+### 8. Export Report
 
-The application uses local data imported into a SQLite database.
+Moduł eksportu raportu.
 
-The current portable database contains:
+Funkcje:
 
-| Dataset                      |                        Table | Record count |
-| ---------------------------- | ---------------------------: | -----------: |
-| Active substances            |          `active_substances` |        3,628 |
-| Substance interactions       |     `substance_interactions` |      627,553 |
-| ICD-11 PL codes              |                  `icd_codes` |       34,222 |
-| Polish drug registry records | `polish_drug_registry_items` |       22,785 |
+* eksport aktualnie zaakceptowanych substancji,
+* eksport wykrytych interakcji,
+* zapis informacji o źródłach,
+* zapis komunikatu bezpieczeństwa.
 
-The data was imported from prepared CSV files. The project was originally developed with PostgreSQL, but later I added SQLite support so the application can run on another computer without requiring PostgreSQL installation or manual database setup.
+Raport ma charakter pomocniczy i nie jest dokumentem medycznym.
 
 ---
 
-## Database modes
+### 9. Audit Log
 
-The application can work in two database modes.
+W obecnej wersji **Audit Log jest częściowo zaimplementowany, ale nie jest traktowany jako stabilna funkcja produkcyjna**.
+
+Status:
+
+```text
+Audit Log: not fully working in the current version.
+```
+
+Znane ograniczenia:
+
+* zapis zdarzeń może zależeć od zgodności schematu tabeli `audit_logs`,
+* część wcześniejszych błędów dotyczyła różnic między kolumnami `event_type` i `action`,
+* funkcja wymaga dalszego uporządkowania i testów.
+
+Audit Log zostaje w projekcie jako element architektury, ale obecna wersja aplikacji nie powinna być oceniana przez pryzmat tej funkcji.
 
 ---
 
-## PostgreSQL development mode
+### 10. History
 
-PostgreSQL was used as the main development database. It was useful for importing larger datasets, testing queries, and working with the data structure during development.
+W obecnej wersji **History również nie działa jako stabilna funkcja końcowa**.
 
-Example `appsettings.json`:
+Status:
 
-```json
-{
-  "Database": {
-    "Provider": "PostgreSQL"
-  },
-  "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=drug_compare_db;Username=postgres;Password=YOUR_PASSWORD"
-  }
-}
+```text
+History: not fully working in the current version.
+```
+
+Znane ograniczenia:
+
+* historia wymaga dopracowania zapisu i odczytu,
+* część przepływu zależy od działania serwisów audytu / historii,
+* obecnie głównym działającym modułem jest Interaction Checker, Drug Lookup, Drug Explorer, Polish Drug Registry, ICD Looker i Database Status.
+
+History zostaje w projekcie jako planowany moduł do dalszego rozwoju.
+
+---
+
+## Architektura aplikacji
+
+Projekt jest podzielony warstwowo:
+
+```text
+Views
+ViewModels
+Services
+Repositories
+Database
+Models
+```
+
+Główny przepływ:
+
+```text
+WPF UI
+  ↓
+MainViewModel
+  ↓
+Application services
+  ↓
+Repository interfaces
+  ↓
+SQLite repositories
+  ↓
+data/medcompare.db
+```
+
+Najważniejsze repozytoria SQLite:
+
+```text
+SqliteDrugRepository
+SqliteSubstanceRepository
+SqliteInteractionRepository
+SqliteDrugExplorerRepository
+SqlitePolishDrugRegistryRepository
+SqliteIcdCodeRepository
+SqliteAuditLogRepository
+```
+
+Najważniejsze serwisy:
+
+```text
+IDrugLookupService
+ISubstanceLookupService
+IInteractionCheckerService
+IDrugExplorerService
+IPolishDrugRegistryService
+IIcdCodeService
+IDatabaseStatusService
 ```
 
 ---
 
-## SQLite portable mode
+## Baza danych
 
-SQLite mode was added to make the app easier to share and run on another machine.
-
-In this mode, the application uses a local database file:
+Obecna wersja portable korzysta z pliku:
 
 ```text
 data/medcompare.db
 ```
 
-Example `appsettings.json`:
+Najważniejsze tabele:
+
+| Tabela                       | Opis                                            |
+| ---------------------------- | ----------------------------------------------- |
+| `drugs`                      | lokalna lista leków, głównie dane EMA           |
+| `drug_active_substances`     | relacja lek → substancja czynna                 |
+| `active_substances`          | słownik substancji czynnych                     |
+| `substance_interactions`     | znane interakcje między substancjami            |
+| `polish_drug_registry_items` | dane z polskiego rejestru produktów leczniczych |
+| `icd_codes`                  | lokalna baza ICD-11                             |
+| `audit_logs`                 | tabela audytu, funkcja w trakcie dopracowania   |
+
+---
+
+## Źródła danych
+
+Projekt korzysta z lokalnie zaimportowanych danych pochodzących z publicznych lub otwartych źródeł.
+
+### EMA
+
+Źródło danych lekowych używane do listy leków i substancji:
+
+```text
+European Medicines Agency — medicines data
+```
+
+EMA udostępnia dane dotyczące leków publikowane na stronie agencji, w tym możliwość pobrania danych w formacie tabelarycznym.
+
+### DDInter / DDInter 2.0
+
+Źródło danych o interakcjach lek–lek / substancja–substancja:
+
+```text
+DDInter
+DDInter 2.0
+```
+
+DDInter jest otwartą bazą danych interakcji lekowych, zawierającą informacje o poziomach ryzyka, mechanizmach i opisach interakcji.
+
+W projekcie dane DDInter zostały przekształcone lokalnie do tabel:
+
+```text
+active_substances
+substance_interactions
+```
+
+### Rejestr Produktów Leczniczych URPL
+
+Źródło danych dla polskiego modułu rejestru leków:
+
+```text
+Rejestr Produktów Leczniczych Dopuszczonych do Obrotu na terytorium RP
+URPL
+```
+
+Dane te są wykorzystywane w osobnej zakładce Polish Drug Registry.
+
+### ICD-11
+
+Źródła klasyfikacji ICD-11:
+
+```text
+WHO ICD-11 Browser
+WHO ICD-11 for Mortality and Morbidity Statistics
+Polskie tłumaczenie ICD-11 publikowane przez Centrum e-Zdrowia
+Materiały Ministerstwa Zdrowia dotyczące wdrożenia ICD-11
+```
+
+W aplikacji ICD Looker dotyczy ICD-11, nie ICD-10.
+
+---
+
+## Tryb portable
+
+Aplikacja może działać jako paczka portable.
+
+Oczekiwany układ folderu:
+
+```text
+publish/portable/
+├─ DrugCompare.exe
+├─ appsettings.json
+└─ data/
+   └─ medcompare.db
+```
+
+Konfiguracja dla wersji portable:
 
 ```json
 {
@@ -167,143 +398,47 @@ Example `appsettings.json`:
 }
 ```
 
-With this setup, the app can be distributed as a ZIP file together with the SQLite database.
+Plik `medcompare.db` nie powinien być commitowany do repozytorium, ponieważ jest duży i zawiera wygenerowany/importowany dataset. Powinien być dostarczany osobno jako artifact release albo kopiowany lokalnie.
 
 ---
 
-## Technologies used
+## Uruchomienie lokalne
 
-The project uses:
-
-* C#,
-* .NET 8,
-* WPF,
-* MVVM-style architecture,
-* CommunityToolkit.Mvvm,
-* Dependency Injection,
-* PostgreSQL,
-* SQLite,
-* Npgsql,
-* Microsoft.Data.Sqlite.
-
----
-
-## Project structure
-
-Main folders:
+Wymagania:
 
 ```text
-DrugCompare/
-├── Models/
-├── Repositories/
-├── Services/
-├── Services/Contracts/
-├── ViewModels/
-├── Views/
-├── Database/
-├── database/sqlite/
-├── data/
-└── appsettings.json
+Windows
+.NET 8 SDK
+Visual Studio 2022 / 2026
+SQLite database file: data/medcompare.db
 ```
 
-Important parts:
-
-```text
-Models/                       data models
-Repositories/                 database access layer
-Services/                     application logic
-Services/Contracts/           service interfaces
-ViewModels/                   view logic
-Views/                        WPF views
-Database/SqliteConnectionFactory.cs
-database/sqlite/schema_sqlite.sql
-data/medcompare.db
-```
-
----
-
-## Repository layer
-
-The application has separate repository implementations for PostgreSQL and SQLite.
-
-Examples of PostgreSQL repositories:
-
-```text
-PostgresIcdCodeRepository
-PostgresPolishDrugRegistryRepository
-PostgresAuditLogRepository
-PostgresInteractionRepository
-```
-
-Examples of SQLite repositories:
-
-```text
-SqliteIcdCodeRepository
-SqlitePolishDrugRegistryRepository
-SqliteAuditLogRepository
-SqliteInteractionRepository
-```
-
-In `App.xaml.cs`, the application reads:
-
-```json
-"Provider": "SQLite"
-```
-
-and chooses the correct repository implementations based on the selected provider.
-
----
-
-## Running locally
-
-From the project folder:
+Uruchomienie:
 
 ```powershell
+git clone https://github.com/Faldekk/MedCompare2.git
+cd MedCompare2/DrugCompare/DrugCompare
+dotnet restore
 dotnet build
 dotnet run
 ```
 
-For SQLite mode, the application needs:
+Jeżeli aplikacja nie znajduje danych, należy sprawdzić, czy plik bazy znajduje się w:
 
 ```text
 data/medcompare.db
 ```
 
-and a correctly configured `appsettings.json`.
+lub czy `appsettings.json` wskazuje właściwą ścieżkę.
 
 ---
 
-## Creating the SQLite database
-
-The SQLite database is created from:
-
-```text
-database/sqlite/schema_sqlite.sql
-```
-
-Commands:
+## Publikacja wersji portable
 
 ```powershell
-sqlite3 .\data\medcompare.db ".read .\database\sqlite\schema_sqlite.sql"
-sqlite3 .\data\medcompare.db ".tables"
-```
+dotnet clean
+Remove-Item -Recurse -Force .\bin, .\obj -ErrorAction SilentlyContinue
 
-Check record counts:
-
-```powershell
-sqlite3 .\data\medcompare.db "SELECT COUNT(*) FROM active_substances;"
-sqlite3 .\data\medcompare.db "SELECT COUNT(*) FROM substance_interactions;"
-sqlite3 .\data\medcompare.db "SELECT COUNT(*) FROM icd_codes;"
-sqlite3 .\data\medcompare.db "SELECT COUNT(*) FROM polish_drug_registry_items;"
-```
-
----
-
-## Publishing a portable release
-
-Create a self-contained Windows build:
-
-```powershell
 dotnet publish .\DrugCompare.csproj `
   -c Release `
   -r win-x64 `
@@ -312,85 +447,104 @@ dotnet publish .\DrugCompare.csproj `
   /p:IncludeNativeLibrariesForSelfExtract=true `
   /p:EnableCompressionInSingleFile=true `
   -o .\publish\portable
-```
 
-Copy the database and configuration:
-
-```powershell
 New-Item -ItemType Directory -Path .\publish\portable\data -Force
 
 Copy-Item .\data\medcompare.db .\publish\portable\data\medcompare.db -Force
 Copy-Item .\appsettings.json .\publish\portable\appsettings.json -Force
+
+Compress-Archive `
+  -Path .\publish\portable\* `
+  -DestinationPath .\MedCompare-portable.zip `
+  -Force
 ```
 
-The final ZIP should look like this:
-
-```text
-MedCompare-portable.zip
-├── DrugCompare.exe
-├── appsettings.json
-└── data/
-    └── medcompare.db
-```
-
-After extracting the ZIP, the application can be started by running:
-
-```text
-DrugCompare.exe
-```
-
-No PostgreSQL installation is required in SQLite portable mode.
+Po rozpakowaniu ZIP-a aplikacja powinna uruchamiać się bez instalowania PostgreSQL.
 
 ---
 
-## Current project status
+## Ograniczenia obecnej wersji
 
-The project is still a prototype, but the main local features are already implemented.
+Obecna wersja działa jako lokalny prototyp, ale ma ograniczenia:
 
-Currently implemented:
-
-* WPF desktop application,
-* multiple application modules,
-* local medical data import,
-* SQLite portable database,
-* interaction checking,
-* ICD code searching,
-* Polish drug registry searching,
-* basic audit logging,
-* portable release preparation.
-
-Still planned / in progress:
-
-* improving Drug Explorer,
-* improving Database Status for SQLite,
-* improving Data Management for SQLite,
-* automating data imports,
-* improving the UI,
-* improving user-facing messages,
-* creating a cleaner installer or release package.
+* aplikacja nie zastępuje decyzji lekarza lub farmaceuty,
+* dane interakcji zależą od kompletności lokalnej bazy,
+* brak interakcji w bazie nie oznacza bezpieczeństwa,
+* Audit Log nie jest jeszcze stabilny,
+* History nie jest jeszcze stabilne,
+* dane ICD-11 są lokalnym importem i mogą wymagać aktualizacji,
+* dane EMA / DDInter / RPL wymagają okresowego odświeżania,
+* duplikaty substancji mogą wymagać dodatkowego czyszczenia danych.
 
 ---
 
-## Medical safety notice
+## Status funkcji
 
-MedCompare is not a certified medical device yet :) (I really want this application to help doctors and interns as me myself is a member of a medical scientific club, in which I recently has presented the threats of blindly trusting technology)
-
-This application is an educational prototype and should not be used as the only source for medical decisions.
-
-If no interaction is found in the local database, it does not mean that a given combination of drugs or substances is safe. It only means that the application did not find a matching record in the currently available local data.
-
-Medical decisions should always be consulted with a doctor, pharmacist, or another qualified healthcare professional.
+| Funkcja              | Status                      |
+| -------------------- | --------------------------- |
+| SQLite portable mode | Działa                      |
+| Drug Lookup          | Działa                      |
+| Manual Substance Add | Działa                      |
+| Interaction Checker  | Działa                      |
+| Drug Explorer        | Działa                      |
+| Polish Drug Registry | Działa                      |
+| ICD-11 Looker        | Działa                      |
+| Database Status      | Działa                      |
+| Export Report        | Działa                      |
+| Audit Log            | Częściowo / wymaga poprawek |
+| History              | Częściowo / wymaga poprawek |
 
 ---
 
-## Author
+## Roadmap
 
-This project was created as an educational desktop application and a practical experiment with local medical information systems.
+Planowane dalsze prace:
 
-The goal was to combine:
+* uporządkowanie Audit Log,
+* naprawa i stabilizacja History,
+* lepsze czyszczenie duplikatów substancji,
+* wersjonowanie importów danych,
+* osobny ekran informacji o źródłach danych,
+* automatyczna walidacja bazy SQLite przy starcie,
+* lepsze komunikaty błędów dla użytkownika,
+* poprawa UI i dostępności,
+* przygotowanie GitHub Release z paczką portable.
 
-* desktop application development,
-* local databases,
-* real medication-related datasets,
-* simple interaction checking,
-* a portable Windows release that can run on another computer without manual database setup.
+---
+
+## Shoutout
+
+Projekt rozwijany jako praktyczny prototyp lokalnej aplikacji medycznej i systemu wspierającego analizę danych lekowych.
+
+Special shoutout dla taty za bycie realnym powodem, żeby doprowadzić aplikację do wersji portable, która faktycznie działa poza środowiskiem developerskim.
+
+---
+
+# English Summary
+
+MedCompare is a local WPF / .NET 8 desktop application for drug lookup, active substance mapping, substance interaction checking, Polish medicinal product registry search, and ICD-11 lookup.
+
+The application runs locally and uses SQLite in portable mode. It does not require PostgreSQL in the current portable version.
+
+The ICD module uses ICD-11, not ICD-10. ICD-11 came into global effect on 1 January 2022 according to WHO. In Poland, ICD-11 implementation is still a transition process supported by public projects and should be treated as an ongoing 2026–2027 implementation area rather than a fully settled production standard inside this prototype.
+
+Current working modules:
+
+* Drug Lookup
+* Manual Substance Add
+* Interaction Checker
+* Drug Explorer
+* Polish Drug Registry
+* ICD-11 Looker
+* Database Status
+* Export Report
+
+Current non-stable modules:
+
+* Audit Log
+* History
+
+MedCompare is a technical and educational clinical decision-support prototype. It must not be used as a replacement for professional medical judgment.
+
+```
+```
